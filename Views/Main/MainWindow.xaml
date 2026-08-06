@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DQEHelper"
+        xmlns:views="clr-namespace:DQEHelper.Views.Csv"
         mc:Ignorable="d"
         Title="DQEHelper"
         Width="1050"
@@ -187,14 +188,12 @@
                     </Grid>
                 </Border>
 
-                <!-- РАБОЧАЯ ОБЛАСТЬ (Здесь будут меняться экраны) -->
+                <!-- РАБОЧАЯ ОБЛАСТЬ -->
                 <Border Grid.Column="1" Margin="20" Background="#90FFFFFF" CornerRadius="12">
-                    <Grid>
-                        <!-- Заглушка, пока мы не создали UserControl для страниц -->
-                        <TextBlock Text="Здесь будет рабочий процесс..." 
-                                   Foreground="#10288C" FontSize="20" FontWeight="SemiBold" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
+                    <ContentControl x:Name="MainContentArea">
+                        <!-- Подставляем наш новый экран по умолчанию -->
+                        <views:CsvProcessorView />
+                    </ContentControl>
                 </Border>
 
             </Grid>
