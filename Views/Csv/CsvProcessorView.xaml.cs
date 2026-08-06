@@ -75,9 +75,11 @@ namespace DQEHelper.Views.Csv
 
             try
             {
-                // Запускаем асинхронную обработку
-                await processor.ProcessCsvAsync(_selectedFilePath, outputCsv, patterns);
-                MessageBox.Show($"Файл успешно обработан!\nСохранен в: {outputCsv}", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Запускаем асинхронную обработку и получаем отчет
+                string resultSummary = await processor.ProcessCsvAsync(_selectedFilePath, outputCsv, patterns);
+
+                // Показываем пользователю результаты выборки
+                MessageBox.Show(resultSummary, "Генерация завершена", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Загружаем предпросмотр результата в DataGrid
                 LoadPreview(outputCsv);
@@ -85,10 +87,6 @@ namespace DQEHelper.Views.Csv
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка обработки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                GenerateButton.IsEnabled = true;
             }
         }
 
@@ -102,5 +100,6 @@ namespace DQEHelper.Views.Csv
             var records = csvReader.GetRecords<DqeCsvRecord>().Take(100).ToList();
             ResultsGrid.ItemsSource = records;
         }
+
     }
 }
