@@ -3,16 +3,15 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using CsvHelper;
-using System.Globalization;
+using System.Windows.Media;
 using DQEHelper.Services;
-using DQEHelper.Models;
 
 namespace DQEHelper.Views.Csv
 {
     public partial class CsvProcessorView : UserControl
     {
         private string? _selectedFilePath;
+        private string? _lastOutputCsvPath; // Сохраняем путь для предпросмотра
 
         public CsvProcessorView()
         {
@@ -22,13 +21,9 @@ namespace DQEHelper.Views.Csv
         private void DropZone_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
                 e.Effects = DragDropEffects.Copy;
-            }
             else
-            {
                 e.Effects = DragDropEffects.None;
-            }
         }
 
         private void DropZone_Drop(object sender, DragEventArgs e)
@@ -39,8 +34,8 @@ namespace DQEHelper.Views.Csv
                 if (files != null && files.Length > 0)
                 {
                     _selectedFilePath = files[0];
-                    // Меняем текст, чтобы пользователь видел, какой файл загружен
-                    DropZoneText.Text = $"Выбран архив:\n{Path.GetFileName(_selectedFilePath)}";
+                    DropZoneText.Text = $"Загружен архив:\n{Path.GetFileName(_selectedFilePath)}";
+                    DropZoneIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")); // Зеленая иконка
                 }
             }
         }
@@ -49,57 +44,67 @@ namespace DQEHelper.Views.Csv
         {
             if (string.IsNullOrEmpty(_selectedFilePath) || !File.Exists(_selectedFilePath))
             {
-                MessageBox.Show("Пожалуйста, сначала перетащите файл архива в зону загрузки.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Сначала перетащите файл.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            string rawInput = ProviderInputTextBox.Text;
-            string[] patterns = rawInput
-                .Split(',')
-                .Select(p => p.Trim())
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToArray();
+            string[] patterns = ProviderInputTextBox.Text.Split(',').Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)).ToArray();
+            if (patterns.Length == 0) return;
 
-            if (patterns.Length == 0)
-            {
-                MessageBox.Show("Введите хотя бы одного провайдера для фильтрации.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Создаем выходной файл в той же папке, где лежит исходник
             string directory = Path.GetDirectoryName(_selectedFilePath) ?? string.Empty;
-            string outputCsv = Path.Combine(directory, "output_filtered.csv");
+            _lastOutputCsvPath = Path.Combine(directory, "output_filtered.csv");
 
             var processor = new CsvProcessingService();
             GenerateButton.IsEnabled = false;
 
+            // Прячем старые результаты на время генерации
+            ReportItemsControl.ItemsSource = null;
+            ProcessingStatusText.Text = "Обработка файла... Пожалуйста, подождите.";
+
             try
             {
-                // Запускаем асинхронную обработку и получаем отчет
-                string resultSummary = await processor.ProcessCsvAsync(_selectedFilePath, outputCsv, patterns);
+                // 🚀 ИСПРАВЛЕНИЕ: Отводим тяжелую работу в фоновый пул потоков.
+                // UI-поток остается свободным, интерфейс не зависает!
+                var results = await Task.Run(() => processor.ProcessCsvAsync(_selectedFilePath, _lastOutputCsvPath, patterns));
 
-                // Показываем пользователю результаты выборки
-                MessageBox.Show(resultSummary, "Генерация завершена", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Сюда мы возвращаемся уже в UI-потоке с готовыми результатами
+                ProcessingStatusText.Text = "Генерация завершена! Результаты выборки:";
+                ReportItemsControl.ItemsSource = results; // WPF мгновенно отрисует карточки
 
-                // Загружаем предпросмотр результата в DataGrid
-                LoadPreview(outputCsv);
+                PreviewButton.IsEnabled = true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка обработки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                ProcessingStatusText.Text = $"Ошибка: {ex.Message}";
+            }
+            finally
+            {
+                GenerateButton.IsEnabled = true;
             }
         }
 
-        private void LoadPreview(string filePath)
-        {
-            // Читаем только первые 100 записей, чтобы не перегружать UI
-            using var reader = new StreamReader(filePath);
-            using var csvReader = new CsvReader(reader, CultureInfo.InvariantCulture);
-            csvReader.Context.RegisterClassMap<DqeCsvRecordMap>();
+        // --- НОВЫЙ ФУНКЦИОНАЛ ---
 
-            var records = csvReader.GetRecords<DqeCsvRecord>().Take(100).ToList();
-            ResultsGrid.ItemsSource = records;
+        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            _selectedFilePath = null;
+            _lastOutputCsvPath = null;
+            ProviderInputTextBox.Text = string.Empty;
+            DataTemplateSelector selector = ReportItemsControl.ItemTemplateSelector;
+            ReportItemsControl.ItemsSource = null; // Очищаем старые результаты
+            PreviewButton.IsEnabled = false;
+            ProcessingStatusText.Text = string.Empty;
+            DropZoneText.Text = "Перетащи сюда архив поставщиков (.csv)";
+            DropZoneIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10288C"));
         }
 
+        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastOutputCsvPath) || !File.Exists(_lastOutputCsvPath)) return;
+
+            // Открываем новое окно предпросмотра
+            var previewWindow = new PreviewWindow(_lastOutputCsvPath);
+            previewWindow.Show();
+        }
     }
 }

@@ -18,110 +18,128 @@ namespace DQEHelper.Services
             public int AvailableCount { get; set; } = 0;
             public int UnavailableCount { get; set; } = 0;
             public HashSet<string> SeenHotels { get; } = new(StringComparer.OrdinalIgnoreCase);
-
             public bool IsComplete => AvailableCount >= 7 && UnavailableCount >= 4;
 
-            public ProviderQuota(string name)
+            // У каждого провайдера теперь свое персональное правило поиска!
+            public Func<DqeCsvRecord, bool> IsMatch { get; }
+
+            public ProviderQuota(string name, Func<DqeCsvRecord, bool> matchRule)
             {
                 Name = name;
+                IsMatch = matchRule;
             }
         }
 
-        public async Task<string> ProcessCsvAsync(string inputFilePath, string outputFilePath, string[] searchPatterns)
+        // 🧠 ФАБРИКА ПРАВИЛ ФИЛЬТРАЦИИ
+        private Func<DqeCsvRecord, bool> GetMatchRule(string providerName)
         {
+            string normalized = providerName.Trim().ToLowerInvariant();
+
+            return normalized switch
+            {
+                // Профиль Google: Ищем google.com/google.ru строго в URL. Игнорируем screengrab.
+                "google" => (record) =>
+                    (record.Url ?? "").Contains("google.com", StringComparison.OrdinalIgnoreCase) ||
+                    (record.Url ?? "").Contains("google.co", StringComparison.OrdinalIgnoreCase),
+
+                // Профиль Traveloka Mobile: URL пустой, ищем метку в скрингрэбе 
+                "traveloka mobile" or "travelokamobile" => (record) =>
+                    // Проходит проверку если URL пустой/нулл, либо есть метка в screengrab
+                    string.IsNullOrWhiteSpace(record.Url) &&
+                    (record.Screengrab ?? "").Contains("traveloka", StringComparison.OrdinalIgnoreCase),
+
+                // Профиль MakeMyTrip Mobile: URL пустой, ищем метку в скрингрэбе 
+                "makemytrip mobile" or "makemytripmobile" => (record) =>
+                    // Проходит проверку если URL пустой/нулл, либо есть метка в screengrab
+                    string.IsNullOrWhiteSpace(record.Url) &&
+                    (record.Screengrab ?? "").Contains("makemytrip", StringComparison.OrdinalIgnoreCase),
+
+                "wotif mobile" or "wotifmobile" => (record) =>
+                    // Проходит проверку если URL пустой/нулл, либо есть метка в screengrab
+                    string.IsNullOrWhiteSpace(record.Url) &&
+                    (record.Screengrab ?? "").Contains("wotif", StringComparison.OrdinalIgnoreCase),
+
+                // Профиль по умолчанию
+                _ => (record) =>
+                    (record.Url ?? "").Contains(providerName, StringComparison.OrdinalIgnoreCase) ||
+                    (record.Screengrab ?? "").Contains(providerName, StringComparison.OrdinalIgnoreCase)
+            };
+        }
+
+        public async Task<List<QuotaResult>> ProcessCsvAsync(string inputFilePath, string outputFilePath, string[] searchPatterns)
+        {
+            // Назначаем каждому провайдеру его правило при создании
             var quotas = searchPatterns
-                .Select(p => new ProviderQuota(p))
+                .Select(p => new ProviderQuota(p, GetMatchRule(p)))
                 .ToList();
 
-            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            var collectedRecords = new List<DqeCsvRecord>();
+
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture) { HasHeaderRecord = true, MissingFieldFound = null, BadDataFound = null };
+
+            using (var reader = new StreamReader(new FileStream(inputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous)))
+            using (var csvReader = new CsvReader(reader, config))
             {
-                HasHeaderRecord = true,
-                MissingFieldFound = null, 
-                BadDataFound = null       
-            };
+                csvReader.Context.RegisterClassMap<DqeCsvRecordMap>();
+                await csvReader.ReadAsync();
+                csvReader.ReadHeader();
 
-            using var reader = new StreamReader(new FileStream(inputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous));
-            using var csvReader = new CsvReader(reader, config);
-            csvReader.Context.RegisterClassMap<DqeCsvRecordMap>();
-
-            using var writer = new StreamWriter(new FileStream(outputFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous));
-            using var csvWriter = new CsvWriter(writer, CultureInfo.InvariantCulture);
-            csvWriter.Context.RegisterClassMap<DqeCsvRecordMap>();
-
-            csvWriter.WriteHeader<DqeCsvRecord>();
-            await csvWriter.NextRecordAsync();
-
-            while (await csvReader.ReadAsync())
-            {
-                if (quotas.All(q => q.IsComplete))
+                while (await csvReader.ReadAsync())
                 {
-                    break;
-                }
+                    if (quotas.All(q => q.IsComplete)) break;
 
-                var record = csvReader.GetRecord<DqeCsvRecord>();
-                
-                // Вытаскиваем нужные поля
-                string providerField = record.DealsProvider ?? string.Empty;
-                string urlField = record.Url ?? string.Empty;
-                string screengrabField = record.Screengrab ?? string.Empty;
-                
-                string hotelKey = !string.IsNullOrWhiteSpace(record.HotelName) ? record.HotelName : urlField;
-                
-                // 1. ПРОВЕРКА ДОСТУПНОСТИ: Используем только колонку deals.provider
-                bool isAvailable = !string.IsNullOrWhiteSpace(providerField);
+                    var record = csvReader.GetRecord<DqeCsvRecord>();
+                    string providerField = record.DealsProvider ?? string.Empty;
+                    string urlField = record.Url ?? string.Empty;
 
-                foreach (var quota in quotas)
-                {
-                    if (quota.IsComplete) continue;
+                    string hotelKey = !string.IsNullOrWhiteSpace(record.HotelName) ? record.HotelName : urlField;
+                    bool isAvailable = !string.IsNullOrWhiteSpace(providerField);
 
-                    // 2. ИДЕНТИФИКАЦИЯ ПРОВАЙДЕРА: Ищем совпадения только в URL и Screengrab
-                    if (urlField.Contains(quota.Name, StringComparison.OrdinalIgnoreCase) ||
-                        screengrabField.Contains(quota.Name, StringComparison.OrdinalIgnoreCase))
+                    foreach (var quota in quotas)
                     {
-                        if (quota.SeenHotels.Contains(hotelKey))
-                        {
-                            continue;
-                        }
+                        if (quota.IsComplete) continue;
 
-                        bool writeRecord = false;
-
-                        if (isAvailable && quota.AvailableCount < 7)
+                        // Вызываем персональное правило профиля!
+                        if (quota.IsMatch(record))
                         {
-                            quota.AvailableCount++;
-                            writeRecord = true;
-                        }
-                        else if (!isAvailable && quota.UnavailableCount < 4)
-                        {
-                            quota.UnavailableCount++;
-                            writeRecord = true;
-                        }
+                            if (quota.SeenHotels.Contains(hotelKey)) continue;
 
-                        if (writeRecord)
-                        {
-                            quota.SeenHotels.Add(hotelKey);
-                            csvWriter.WriteRecord(record);
-                            await csvWriter.NextRecordAsync();
-                        }
+                            bool writeRecord = false;
+                            if (isAvailable && quota.AvailableCount < 7)
+                            {
+                                quota.AvailableCount++;
+                                writeRecord = true;
+                            }
+                            else if (!isAvailable && quota.UnavailableCount < 4)
+                            {
+                                quota.UnavailableCount++;
+                                writeRecord = true;
+                            }
 
-                        break;
+                            if (writeRecord)
+                            {
+                                quota.SeenHotels.Add(hotelKey);
+                                collectedRecords.Add(record);
+                            }
+                            break;
+                        }
                     }
                 }
             }
 
-            var summary = new System.Text.StringBuilder("Отчет по выборке:\n\n");
-            foreach (var quota in quotas)
+            var sortedRecords = collectedRecords.OrderBy(r => r.Screengrab ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
+
+            using (var writer = new StreamWriter(new FileStream(outputFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous)))
+            using (var csvWriter = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
-                summary.AppendLine($"Провайдер: {quota.Name}");
-                summary.AppendLine($"- Доступных: {quota.AvailableCount}/7");
-                summary.AppendLine($"- Недоступных: {quota.UnavailableCount}/4");
-                if (!quota.IsComplete)
-                {
-                    summary.AppendLine("  (В архиве не хватило уникальных данных)");
-                }
-                summary.AppendLine();
+                csvWriter.Context.RegisterClassMap<DqeCsvRecordMap>();
+                csvWriter.WriteHeader<DqeCsvRecord>();
+                await csvWriter.NextRecordAsync();
+                await csvWriter.WriteRecordsAsync(sortedRecords);
             }
 
-            return summary.ToString();
+            // Возвращаем структурированный список вместо текста
+            return quotas.Select(q => new QuotaResult(q.Name, q.AvailableCount, q.UnavailableCount, q.IsComplete)).ToList();
         }
     }
 }
