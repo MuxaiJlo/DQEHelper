@@ -9,61 +9,108 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- Зона загрузки -->
-            <RowDefinition Height="Auto" /> <!-- Настройки фильтрации -->
-            <RowDefinition Height="*" />    <!-- Таблица с результатами -->
+            <RowDefinition Height="Auto" /> <!-- Настройки -->
+            <RowDefinition Height="*" />    <!-- Свободное пространство/Статус -->
+            <RowDefinition Height="Auto" /> <!-- Панель кнопок (Внизу) -->
         </Grid.RowDefinitions>
 
         <!-- Зона Drag & Drop -->
-        <Border Grid.Row="0" Margin="20,20,20,10" Height="100" CornerRadius="12" 
+        <Border x:Name="DropZoneBorder" Grid.Row="0" Margin="20,20,20,10" Height="150" CornerRadius="12" 
                 BorderBrush="#10288C" BorderThickness="2" Background="#20FFFFFF"
                 AllowDrop="True" Drop="DropZone_Drop" DragEnter="DropZone_DragEnter">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                <TextBlock Text="&#xE8B5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" 
-                           FontSize="32" Foreground="#10288C" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBlock x:Name="DropZoneIcon" Text="&#xE8B5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" 
+                           FontSize="40" Foreground="#10288C" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                 <TextBlock x:Name="DropZoneText" Text="Перетащи сюда архив поставщиков (.csv)" 
-                           FontSize="16" FontWeight="SemiBold" Foreground="#333333" HorizontalAlignment="Center"/>
+                           FontSize="16" FontWeight="SemiBold" Foreground="#333333" HorizontalAlignment="Center" TextAlignment="Center"/>
             </StackPanel>
         </Border>
 
         <!-- Настройки фильтрации -->
-        <StackPanel Grid.Row="1" Margin="20,0,20,10">
-            <TextBlock Text="Провайдеры для фильтрации (через запятую):" FontWeight="SemiBold" Margin="0,0,0,5"/>
+        <StackPanel Grid.Row="1" Margin="20,10,20,10">
+            <TextBlock Text="Провайдеры для выборки (через запятую):" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="#10288C"/>
+            
+            <!-- Оборачиваем в Grid, чтобы элементы наложились друг на друга -->
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ProviderInputTextBox" Height="40" Padding="10,0" 
+                        VerticalContentAlignment="Center" FontSize="14" />
                 
-                <TextBox x:Name="ProviderInputTextBox" Grid.Column="0" Height="35" Padding="10,0" 
-                         VerticalContentAlignment="Center" FontSize="14" 
-                         ToolTip="Например: klook, agoda, Hotels In America"/>
-                
-                <Button x:Name="GenerateButton" Grid.Column="1" Margin="10,0,0,0" Width="150" 
-                        Content="Сгенерировать Output" Background="#10288C" Foreground="White" 
-                        FontWeight="Bold" Cursor="Hand" Click="GenerateButton_Click">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="6"/>
+                <!-- Сам Placeholder -->
+                <TextBlock Text="Например: klook, ikyu, google" 
+                        VerticalAlignment="Center" Margin="13,0,0,0" 
+                        Foreground="#AAAAAA" FontSize="14" 
+                        IsHitTestVisible="False"> <!-- IsHitTestVisible="False" позволяет кликать "сквозь" текст по TextBox -->
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                            <Style.Triggers>
+                                <!-- Показываем текст только если поле ProviderInputTextBox пустое -->
+                                <DataTrigger Binding="{Binding Text, ElementName=ProviderInputTextBox}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
                         </Style>
-                    </Button.Resources>
-                </Button>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
         </StackPanel>
 
-        <!-- Таблица данных (DataGrid) -->
-        <DataGrid x:Name="ResultsGrid" Grid.Row="2" Margin="20,10,20,20" 
-                  AutoGenerateColumns="True" IsReadOnly="True" 
-                  Background="Transparent" RowBackground="#FAFAFA" 
-                  AlternatingRowBackground="#FFFFFF" HeadersVisibility="Column"
-                  BorderBrush="#DDDDDD" BorderThickness="1">
-            <DataGrid.Resources>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#10288C"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="Padding" Value="10,8"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </Style>
-            </DataGrid.Resources>
-        </DataGrid>
+        <!-- Область отчета (Дашборд с карточками) -->
+        <ScrollViewer Grid.Row="2" Margin="20,10,20,10" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock x:Name="ProcessingStatusText" FontSize="14" Foreground="#10288C" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                
+                <ItemsControl x:Name="ReportItemsControl">
+                    <!-- Заставляем карточки идти слева направо -->
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    
+                    <!-- Дизайн самой карточки отчета -->
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FFFFFF" BorderBrush="#DDDDDD" BorderThickness="1" 
+                                    CornerRadius="8" Padding="15" Margin="0,0,15,15" Width="220"
+                                    >
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ProviderName}" FontWeight="Bold" FontSize="16" Foreground="#10288C" TextTrimming="CharacterEllipsis"/>
+                                    <Rectangle Height="1" Fill="#EEEEEE" Margin="0,8"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock Text="Доступно:" Width="90" Foreground="#555555"/>
+                                        <TextBlock Text="{Binding Available, StringFormat={}{0} / 7}" FontWeight="SemiBold" Foreground="#4CAF50"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Недоступно:" Width="90" Foreground="#555555"/>
+                                        <TextBlock Text="{Binding Unavailable, StringFormat={}{0} / 4}" FontWeight="SemiBold" Foreground="#FF5722"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Панель управления (Кнопки) -->
+        <Border Grid.Row="3" Margin="20,0,20,20" Background="#10FFFFFF" CornerRadius="8" Padding="15">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="ResetButton" Content="Сбросить" Width="100" Height="35" Margin="0,0,10,0" 
+                        Background="Transparent" BorderBrush="#AAAAAA" Foreground="#333333" Cursor="Hand" Click="ResetButton_Click">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+                
+                <Button x:Name="PreviewButton" Content="Предпросмотр" Width="120" Height="35" Margin="0,0,10,0" 
+                        Background="#EAF6AD" Foreground="#10288C" FontWeight="Bold" Cursor="Hand" Click="PreviewButton_Click" IsEnabled="False">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+
+                <Button x:Name="GenerateButton" Content="Сгенерировать" Width="140" Height="35" 
+                        Background="#10288C" Foreground="White" FontWeight="Bold" Cursor="Hand" Click="GenerateButton_Click">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>
