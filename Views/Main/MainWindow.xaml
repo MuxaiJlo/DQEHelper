@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DQEHelper"
         xmlns:views="clr-namespace:DQEHelper.Views.Csv"
+        xmlns:viewsApi="clr-namespace:DQEHelper.Views.Coralogix"
         mc:Ignorable="d"
         Title="DQEHelper"
-        Width="1050"
+        Width="1000"
         Height="700"
         ResizeMode="NoResize"
         WindowStyle="None"
@@ -155,21 +156,23 @@
                         <StackPanel Grid.Row="1">
                             <TextBlock Text="WORKFLOWS" Margin="20,0,0,10" FontSize="12" FontWeight="Bold" Opacity="0.5"/>
                             
-                            <!-- Task 1: CSV -->
-                            <RadioButton Style="{StaticResource MenuButtonStyle}" GroupName="MainMenu" IsChecked="True" x:Name="NavCsvProcessor">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8C4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
-                                    <TextBlock Text="CSV Filter &amp; Check" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </RadioButton>
+                        <!-- Task 1: CSV -->
+                        <RadioButton Style="{StaticResource MenuButtonStyle}" GroupName="MainMenu"
+                                    x:Name="NavCsvProcessor" Checked="NavCsvProcessor_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8C4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
+                                <TextBlock Text="CSV Filter &amp; Check" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
 
-                            <!-- Task 2: API -->
-                            <RadioButton Style="{StaticResource MenuButtonStyle}" GroupName="MainMenu" x:Name="NavApiFetcher">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE753;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
-                                    <TextBlock Text="Coralogix API" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </RadioButton>
+                        <!-- Task 2: API -->
+                        <RadioButton Style="{StaticResource MenuButtonStyle}" GroupName="MainMenu" 
+                                    x:Name="NavApiFetcher" Checked="NavApiFetcher_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE753;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
+                                <TextBlock Text="Coralogix API" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
                         </StackPanel>
 
                         <!-- Настройки (Внизу) -->
@@ -190,10 +193,8 @@
 
                 <!-- РАБОЧАЯ ОБЛАСТЬ -->
                 <Border Grid.Column="1" Margin="20" Background="#90FFFFFF" CornerRadius="12">
-                    <ContentControl x:Name="MainContentArea">
-                        <!-- Подставляем наш новый экран по умолчанию -->
-                        <views:CsvProcessorView />
-                    </ContentControl>
+                    <!-- Оставляем его пустым, контент будет подставляться через C# -->
+                    <ContentControl x:Name="MainContentArea" />
                 </Border>
 
             </Grid>
