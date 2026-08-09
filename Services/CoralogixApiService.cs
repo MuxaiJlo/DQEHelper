@@ -106,10 +106,28 @@ namespace DQEHelper.Services
             return ParseElasticsearchResponse(responseJson);
         }
 
-        // Заглушка для второго этапа
+        // ЭТАП 2: Запрос сырого JSON из GCP API
         public async Task<string> GetRawScanDataAsync(string providerScanId, string taskId)
         {
-            return await Task.FromResult("{ \"status\": \"not implemented yet\" }");
+            // 1. Очищаем от случайных пробелов
+            string cleanScanId = providerScanId.Trim();
+            string cleanTaskId = taskId.Trim();
+
+            // 2. Кодируем параметры для безопасности URL (превратит ":" в "%3A")
+            string safeScanId = Uri.EscapeDataString(cleanScanId);
+            string safeTaskId = Uri.EscapeDataString(cleanTaskId);
+
+            // 3. Формируем URL БЕЗ хардкода "::0", так как он уже есть в taskId
+            string url = $"http://historical-data-api-prod.prod.gcphosts.net:5000/data/hot/{safeScanId}?id={safeTaskId}";
+
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            string jsonResult = await response.Content.ReadAsStringAsync();
+
+            // Форматируем JSON для красивого отображения в UI
+            using var jsonDoc = JsonDocument.Parse(jsonResult);
+            return JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
         }
 
         private List<CoralogixLogEntry> ParseElasticsearchResponse(string jsonResponse)
