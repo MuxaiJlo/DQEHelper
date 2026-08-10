@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using DQEHelper.Views.Coralogix;
 using DQEHelper.Views.Csv;
+using DQEHelper.Views.Jenkins;
+using DQEHelper.Views;
 
 namespace DQEHelper.Views.Main
 {
@@ -11,6 +13,8 @@ namespace DQEHelper.Views.Main
         // Создаем экземпляры страниц заранее, чтобы они сохраняли свое состояние
         private readonly CsvProcessorView _csvView;
         private readonly CoralogixView _coralogixView;
+        private readonly JenkinsView _jenkinsView;
+        private readonly JiraReport _jiraReport;
         private readonly Border _welcomeContent;
 
         public MainWindow()
@@ -20,6 +24,8 @@ namespace DQEHelper.Views.Main
             // Инициализируем наши представления (UserControl)
             _csvView = new CsvProcessorView();
             _coralogixView = new CoralogixView();
+            _jenkinsView = new JenkinsView();
+            _jiraReport = new JiraReport();
             _welcomeContent = CreateWelcomeContent();
 
             // При запуске приложения показываем приветственное сообщение и просим выбрать задачу
@@ -72,7 +78,7 @@ namespace DQEHelper.Views.Main
             }
         }
 
-        private void NavApiFetcher_Checked(object sender, RoutedEventArgs e)
+        private void NavCoralogixApiFetcher_Checked(object sender, RoutedEventArgs e)
         {
             if (MainContentArea != null && _coralogixView != null)
             {
@@ -80,6 +86,24 @@ namespace DQEHelper.Views.Main
                 Width = 1400;
             }
         }
+        private void NavJenkinsApiFetcher_Checked(object sender, RoutedEventArgs e)
+        {
+            if (MainContentArea != null && _jenkinsView != null)
+            {
+                MainContentArea.Content = _jenkinsView;
+                Width = 1400;
+            }
+        }
+
+        private void NavJiraReportFetcher_Checked(object sender, RoutedEventArgs e)
+        {
+            if (MainContentArea != null && _jiraReport != null)
+            {
+                MainContentArea.Content = _jiraReport;
+                Width = 1400;
+            }
+        }
+
         // Позволяет перетаскивать окно за верхнюю панель
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
