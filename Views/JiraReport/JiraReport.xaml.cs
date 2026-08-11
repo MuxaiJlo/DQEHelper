@@ -66,7 +66,7 @@ namespace DQEHelper.Views
 
             sb.AppendLine($"**Link to the document:** {SpreadsheetLinkTextBox.Text.Trim()}");
             sb.AppendLine();
-            sb.AppendLine("If you have any questions, please let me know <Me> FYI <Sergiy Gulko>");
+            sb.AppendLine("If you have any questions, please let me know <Me> \nFYI <Sergiy Gulko>");
 
             ReportOutputTextBox.Text = sb.ToString();
         }
@@ -136,7 +136,6 @@ namespace DQEHelper.Views
 
                 if (isAutotest)
                 {
-                    // 🚀 ЛОГИКА АВТОТЕСТОВ: Просто копируем из файла, никакой математики!
                     var errors = recordsInGroup.Where(r => !string.IsNullOrWhiteSpace(r.Comment)).ToList();
 
                     if (!errors.Any())
@@ -149,22 +148,39 @@ namespace DQEHelper.Views
                         {
                             string flag = error.Flag;
 
-                            // Если флаг - это прочерк (как у hyatt), выводим просто текст ошибки
+                            // Заголовок провайдера
+                            sb.AppendLine($"* **Agoda DTI | {provider}**:");
+
                             if (flag == "-" || string.IsNullOrWhiteSpace(flag))
                             {
-                                sb.AppendLine($"* **Agoda DTI | {provider}**: {error.Comment}");
+                                // Если нет scale (например, hyatt), выводим только комментарий с отступом
+                                sb.AppendLine($"  {error.Comment}");
                             }
                             else
                             {
-                                // Подставляем готовую метрику из файла (например, 33/38 (92%))
-                                sb.AppendLine($"* **Agoda DTI | {provider}**: Scale: {flag}: {error.Comment};");
+                                string scaleText = $"Scale: {flag}";
+                                if (flag.Contains("/"))
+                                {
+                                    var parts = flag.Split('/');
+                                    if (parts.Length == 2 &&
+                                        int.TryParse(parts[0].Trim(), out int errCount) &&
+                                        int.TryParse(parts[1].Trim(), out int total) && total > 0)
+                                    {
+                                        int percent = (int)Math.Round((errCount * 100.0) / total);
+                                        scaleText = $"Scale: {errCount}/{total} ({percent}%)";
+                                    }
+                                }
+
+                                // Выводим Scale и Комментарий на новых строках с отступом
+                                sb.AppendLine($"  {scaleText}");
+                                sb.AppendLine($"  {error.Comment}");
                             }
                         }
                     }
                 }
                 else
                 {
-                    // 🚀 ЛОГИКА РУЧНЫХ ПРОВЕРОК: Агрегируем строки и считаем %
+                    // Логика ручных проверок (Coralogix / Daily)
                     int totalChecks = recordsInGroup.Count();
                     var errors = recordsInGroup.Where(r => r.Flag == "0" || !string.IsNullOrWhiteSpace(r.Comment)).ToList();
                     int errorCount = errors.Count;
@@ -177,22 +193,30 @@ namespace DQEHelper.Views
                     {
                         int percent = (int)Math.Round((errorCount * 100.0) / totalChecks);
 
+                        // Заголовок провайдера
+                        sb.AppendLine($"* **Agoda DTI | {provider}**:");
+                        // Вывод Scale на новой строке
+                        sb.AppendLine($"  Scale: {errorCount}/{totalChecks} ({percent}%)");
+
                         var groupedComments = errors
                             .Where(e => !string.IsNullOrEmpty(e.Comment))
                             .GroupBy(e => e.Comment)
                             .Select(g => $"{g.Count()} - {g.Key}");
 
-                        string commentsString = string.Join("; ", groupedComments);
-
-                        sb.AppendLine($"* **Agoda DTI | {provider}**: Scale: {errorCount}/{totalChecks} ({percent}%): {commentsString};");
+                        // Вывод каждой группы ошибок на новой строке с отступом
+                        foreach (var comment in groupedComments)
+                        {
+                            sb.AppendLine($"  {comment}");
+                        }
                     }
                 }
             }
 
+            // Провайдеры без ошибок остаются в одну строку
             if (spotlessProviders.Any())
             {
                 string combinedSpotless = string.Join(", ", spotlessProviders);
-                sb.AppendLine($"* **Agoda DTI | {combinedSpotless}**: No issues were found;");
+                sb.AppendLine($"* **Agoda DTI | {combinedSpotless}**: No issues were found");
             }
 
             sb.AppendLine();
