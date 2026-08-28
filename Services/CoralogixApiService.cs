@@ -22,6 +22,8 @@ namespace DQEHelper.Services
 
             // Маскируемся под браузер
             _httpClient.DefaultRequestHeaders.Add("Cookie", cookieString);
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
 
             // Этот заголовок часто обязателен для внутренних API OpenSearch/Kibana
             _httpClient.DefaultRequestHeaders.Add("osd-xsrf", "true");
@@ -30,7 +32,7 @@ namespace DQEHelper.Services
 
         public async Task<List<CoralogixLogEntry>> SearchLogsAsync(
             string customer, string provider, string scanMethod,
-            string accessLevel, string stage, string availability, int limit)
+            string accessLevel, string stage, string availability, int limit, string timeRange)
         {
             var mustConditions = new List<object>();
 
@@ -66,6 +68,25 @@ namespace DQEHelper.Services
             if (availability != "Any")
                 mustConditions.Add(new { match_phrase = new Dictionary<string, string> { { "log.availability", availability } } });
 
+            // Добавляем фильтр по времени (например: "1h", "6h", "12h", "24h")
+            if (!string.IsNullOrWhiteSpace(timeRange) && timeRange != "Any")
+            {
+                int hours = 0;
+                if (timeRange.EndsWith("h") && int.TryParse(timeRange.Substring(0, timeRange.Length - 1), out var h)) hours = h;
+                else if (int.TryParse(timeRange, out var h2)) hours = h2;
+
+                if (hours > 0)
+                {
+                    mustConditions.Add(new
+                    {
+                        range = new Dictionary<string, object>
+                        {
+                            { "coralogix.timestamp", new Dictionary<string, string> { { "gte", $"now-{hours}h" }, { "lte", "now" } } }
+                        }
+                    });
+                }
+            }
+
             var opensearchPayload = new
             {
                 @params = new
@@ -92,6 +113,14 @@ namespace DQEHelper.Services
 
             var response = await _httpClient.PostAsync(_coralogixSearchUrl, content);
             string responseJson = await response.Content.ReadAsStringAsync();
+            // Быстрая проверка: если сервер вернул HTML (например, страница логина или ошибка),
+            // избежать JsonException и дать понятную подсказку пользователю.
+            var trimmed = responseJson?.TrimStart();
+            if (!string.IsNullOrEmpty(trimmed) && trimmed.StartsWith("<"))
+            {
+                string preview = trimmed.Length > 800 ? trimmed.Substring(0, 800) + "..." : trimmed;
+                throw new Exception($"Coralogix вернул HTML вместо JSON (возможная страница логина/ошибка). Проверьте cookie/доступ/VPN. Response start: {preview}");
+            }
 
             Debug.WriteLine("=== CORALOGIX API RESPONSE ===");
             Debug.WriteLine($"STATUS: {response.StatusCode}");
@@ -100,10 +129,22 @@ namespace DQEHelper.Services
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"Ошибка Coralogix ({response.StatusCode}). Проверьте лог отладки.");
+                string snippet = responseJson?.Length > 1000 ? responseJson.Substring(0, 1000) + "..." : responseJson;
+                throw new Exception($"Ошибка Coralogix ({response.StatusCode}). Response: {snippet}");
             }
 
-            return ParseElasticsearchResponse(responseJson);
+            // Попытка распарсить JSON; если сервер вернул HTML (начинается с '<') или другой мусор,
+            // покажем понятную ошибку вместо необработанного JsonException.
+            try
+            {
+                return ParseElasticsearchResponse(responseJson);
+            }
+            catch (System.Text.Json.JsonException jex)
+            {
+                string preview = responseJson?.TrimStart();
+                if (preview != null && preview.Length > 200) preview = preview.Substring(0, 200) + "...";
+                throw new Exception($"Невалидный JSON от Coralogix. Начало ответа: {preview}. ParseError: {jex.Message}");
+            }
         }
 
         // ЭТАП 2: Запрос сырого JSON из GCP API

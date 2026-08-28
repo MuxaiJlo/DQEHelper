@@ -59,12 +59,32 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Stage:" FontWeight="SemiBold" Foreground="#555"/>
-                    <ComboBox x:Name="StageCombo" Height="30" Margin="0,0,0,10" SelectedIndex="0">
-                        <ComboBoxItem Content="result processed"/>
-                        <ComboBoxItem Content="result failed"/>
-                        <ComboBoxItem Content="Any"/>
-                    </ComboBox>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="140" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Stage:" FontWeight="SemiBold" Foreground="#555"/>
+                            <ComboBox x:Name="StageCombo" Height="30" SelectedIndex="0">
+                                <ComboBoxItem Content="result processed"/>
+                                <ComboBoxItem Content="result failed"/>
+                                <ComboBoxItem Content="Any"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Time range:" FontWeight="SemiBold" Foreground="#555"/>
+                            <ComboBox x:Name="TimeRangeCombo" Height="30" SelectedIndex="4">
+                                <ComboBoxItem Tag="1h" Content="1 hour"/>
+                                <ComboBoxItem Tag="6h" Content="6 hours"/>
+                                <ComboBoxItem Tag="12h" Content="12 hours"/>
+                                <ComboBoxItem Tag="24h" Content="24 hours"/>
+                                <ComboBoxItem Tag="Any" Content="Any"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
 
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
