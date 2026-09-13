@@ -138,19 +138,33 @@
                         </Grid.RowDefinitions>
 
                         <!-- Профиль пользователя -->
-                        <Border Grid.Row="0" Margin="20,20,20,30" Padding="15" Background="#20FFFFFF" CornerRadius="12">
-                            <StackPanel Orientation="Horizontal">
-                                <!-- Аватарка (пока используем иконку) -->
-                                <Border Width="40" Height="40" CornerRadius="20" Background="#10288C">
-                                    <TextBlock Text="&#xE77B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" 
-                                               Foreground="White" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="DQE Engineer" FontWeight="Bold" FontSize="14"/>
-                                    <TextBlock Text="Not authenticated" FontSize="11" Opacity="0.7"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
+                        <Button Grid.Row="0" Margin="20,20,20,30" Cursor="Hand" Click="MenuProfileButton_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <!-- Добавили x:Name, чтобы обращаться к нему в триггерах -->
+                                    <Border x:Name="ProfileBorder" Padding="15" Background="#20FFFFFF" CornerRadius="12">
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- Аватарка -->
+                                            <Border Width="40" Height="40" CornerRadius="20" Background="#10288C">
+                                                <TextBlock Text="&#xE77B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" 
+                                                        Foreground="White" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="DQE Engineer" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                                
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    
+                                    <!-- Триггер для эффекта наведения: делаем фон чуть светлее -->
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ProfileBorder" Property="Background" Value="#40FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
 
                         <!-- Навигация (Рабочие процессы) -->
                         <StackPanel Grid.Row="1">

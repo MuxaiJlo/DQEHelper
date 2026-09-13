@@ -21,13 +21,18 @@ namespace DQEHelper.Services
             _httpClient = new HttpClient();
 
             // Маскируемся под браузер
-            _httpClient.DefaultRequestHeaders.Add("Cookie", cookieString);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
 
             // Этот заголовок часто обязателен для внутренних API OpenSearch/Kibana
             _httpClient.DefaultRequestHeaders.Add("osd-xsrf", "true");
             _httpClient.DefaultRequestHeaders.Add("kbn-xsrf", "true");
+
+            // ПРОВЕРКА: Добавляем куку только если она не пустая
+            if (!string.IsNullOrWhiteSpace(cookieString))
+            {
+                _httpClient.DefaultRequestHeaders.Add("Cookie", cookieString);
+            }
         }
 
         public async Task<List<CoralogixLogEntry>> SearchLogsAsync(

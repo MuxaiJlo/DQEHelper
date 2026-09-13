@@ -104,6 +104,12 @@ namespace DQEHelper.Views.Main
             }
         }
 
+        private void MenuProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            MainContentArea.Content = new ProfileView();
+            Width = 1000;
+        }
+
         // Позволяет перетаскивать окно за верхнюю панель
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
