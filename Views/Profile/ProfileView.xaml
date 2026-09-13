@@ -1,0 +1,50 @@
+<UserControl x:Class="DQEHelper.Views.ProfileView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent" Padding="20"
+             Loaded="UserControl_Loaded">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Карточка профиля -->
+            <RowDefinition Height="Auto"/> <!-- Настройки Coralogix -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Профиль пользователя (твой код с небольшими правками) -->
+        <Border Grid.Row="0" Margin="0,0,0,30" Padding="15" Background="#FAFAFA" CornerRadius="12" BorderBrush="#DDDDDD" BorderThickness="1" HorizontalAlignment="Left" MinWidth="300">
+            <StackPanel Orientation="Horizontal">
+                <!-- Аватарка -->
+                <Border Width="50" Height="50" CornerRadius="25" Background="#10288C">
+                    <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" 
+                               Foreground="White" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Margin="15,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="DQE Engineer" FontWeight="Bold" FontSize="16" Foreground="#333"/>
+                    <TextBlock x:Name="AuthStatusTextBlock" Text="Not authenticated" FontSize="12" Foreground="#D32F2F" Margin="0,2,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Настройки авторизации -->
+        <Border Grid.Row="1" Padding="20" Background="#FFFFFF" CornerRadius="12" BorderBrush="#DDDDDD" BorderThickness="1" HorizontalAlignment="Left" MinWidth="500">
+            <StackPanel>
+                <TextBlock Text="Авторизация Coralogix" FontWeight="Bold" FontSize="16" Foreground="#10288C" Margin="0,0,0,15"/>
+                
+                <TextBlock Text="Coralogix Auth Cookie (копировать из DevTools):" Foreground="#555" FontSize="12" Margin="0,0,0,5"/>
+                
+                <!-- TextBox вместо PasswordBox, так как куки длинные и часто нужно видеть, что вставляешь -->
+                <TextBox x:Name="CookieTextBox" Height="35" Padding="5" BorderBrush="#CCCCCC" BorderThickness="1" Foreground="#333" Margin="0,0,0,15"/>
+
+                <Button x:Name="SaveCookieButton" Content="💾 СОХРАНИТЬ КУКУ" Height="40" Width="200" HorizontalAlignment="Left" 
+                        Background="#4CAF50" Foreground="White" FontWeight="Bold" Cursor="Hand" Click="SaveCookieButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

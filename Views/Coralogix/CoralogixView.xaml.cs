@@ -18,18 +18,19 @@ namespace DQEHelper.Views.Coralogix
     public partial class CoralogixView : UserControl
     {
         private readonly CoralogixApiService _apiService;
-
-        // Коллекция для хранения собранных сканов (автоматически обновляет UI)
         private readonly ObservableCollection<ScanReportItem> _reportCart = new();
 
-        public CoralogixView()
-        {
-            InitializeComponent();
-            _apiService = new CoralogixApiService(AppConfig.CoralogixCookie);
+       public CoralogixView()
+    {
+        InitializeComponent();
+        CartListBox.ItemsSource = _reportCart;
 
-            // Привязываем корзину к ListBox в правой панели
-            CartListBox.ItemsSource = _reportCart;
-        }
+        // 1. Достаем куку из зашифрованного локального файла
+        string savedCookie = SecureStorage.GetCoralogixCookie();
+
+        // 2. Инициализируем сервис
+        _apiService = new CoralogixApiService(savedCookie);
+    }
 
         // ==========================================
         // ЭТАП 1: ПОИСК (Левая панель)
