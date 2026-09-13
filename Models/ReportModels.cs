@@ -30,25 +30,17 @@ namespace DQEHelper.Models
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    public class ErrorNode : ReportNode { }
-
-    // 🚀 НОВЫЙ КЛАСС: Узел Комнаты
+    // 🚀 Лист дерева (комната)
     public class RoomNode : ReportNode
     {
-        public ObservableCollection<ErrorNode> Errors { get; } = new();
         public int RoomIndex { get; set; }
-
-        protected override void OnCheckedChanged()
-        {
-            foreach (var error in Errors) error.IsChecked = IsChecked;
-        }
     }
 
-    // 🚀 ИЗМЕНЕНО: Snap теперь содержит Комнаты (Rooms)
+    // 🚀 Снэп теперь содержит комнаты
     public class SnapNode : ReportNode
     {
-        public ObservableCollection<RoomNode> Rooms { get; } = new();
         public int SnapIndex { get; set; }
+        public ObservableCollection<RoomNode> Rooms { get; } = new();
 
         protected override void OnCheckedChanged()
         {
@@ -56,13 +48,25 @@ namespace DQEHelper.Models
         }
     }
 
-    public class ProviderNode : ReportNode
+    // 🚀 Ошибка теперь содержит снэпы
+    public class ErrorGroupNode : ReportNode
     {
         public ObservableCollection<SnapNode> Snaps { get; } = new();
-        
+
         protected override void OnCheckedChanged()
         {
             foreach (var snap in Snaps) snap.IsChecked = IsChecked;
+        }
+    }
+
+    // 🚀 Провайдер содержит группы ошибок
+    public class ProviderNode : ReportNode
+    {
+        public ObservableCollection<ErrorGroupNode> Errors { get; } = new();
+        
+        protected override void OnCheckedChanged()
+        {
+            foreach (var error in Errors) error.IsChecked = IsChecked;
         }
     }
 }

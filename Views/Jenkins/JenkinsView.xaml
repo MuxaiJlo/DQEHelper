@@ -51,31 +51,34 @@
                 <!-- ДЕРЕВО -->
                 <TreeView x:Name="ReportTreeView" Grid.Row="2" BorderThickness="1" BorderBrush="#E0E0E0" Background="White" Margin="0,15,0,15" ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <TreeView.Resources>
-                        <HierarchicalDataTemplate DataType="{x:Type models:ProviderNode}" ItemsSource="{Binding Snaps}">
+                        <HierarchicalDataTemplate DataType="{x:Type models:ProviderNode}" ItemsSource="{Binding Errors}">
                             <StackPanel Orientation="Horizontal" Margin="2,4">
                                 <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14" Foreground="#10288C" Margin="5,0,0,0"/>
                             </StackPanel>
                         </HierarchicalDataTemplate>
                         
+                        <!-- Ошибка -> Snaps -->
+                        <HierarchicalDataTemplate DataType="{x:Type models:ErrorGroupNode}" ItemsSource="{Binding Snaps}">
+                            <StackPanel Orientation="Horizontal" Margin="2,3">
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                                <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="#D32F2F" TextWrapping="Wrap" MaxWidth="250" Margin="5,0,0,0" LineHeight="16"/>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+
+                        <!-- Снэп -> Rooms -->
                         <HierarchicalDataTemplate DataType="{x:Type models:SnapNode}" ItemsSource="{Binding Rooms}">
                             <StackPanel Orientation="Horizontal" Margin="2,3">
                                 <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="#333" Margin="5,0,0,0"/>
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#333" Margin="5,0,0,0"/>
                             </StackPanel>
                         </HierarchicalDataTemplate>
 
-                        <HierarchicalDataTemplate DataType="{x:Type models:RoomNode}" ItemsSource="{Binding Errors}">
-                            <StackPanel Orientation="Horizontal" Margin="2,3">
-                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#555" Margin="5,0,0,0"/>
-                            </StackPanel>
-                        </HierarchicalDataTemplate>
-
-                        <DataTemplate DataType="{x:Type models:ErrorNode}">
+                        <!-- Комната (Лист) -->
+                        <DataTemplate DataType="{x:Type models:RoomNode}">
                             <StackPanel Orientation="Horizontal" Margin="2">
-                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" MaxWidth="250" Margin="5,0,0,0" Foreground="#555" LineHeight="16"/>
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Title}" Foreground="#666" Margin="5,0,0,0"/>
                             </StackPanel>
                         </DataTemplate>
                     </TreeView.Resources>
