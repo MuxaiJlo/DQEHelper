@@ -51,8 +51,10 @@ namespace DQEHelper.Views.Coralogix
 
                 if (!int.TryParse(LimitTextBox.Text, out int limit)) limit = 10;
 
-                var results = await Task.Run(() => _apiService.SearchLogsAsync(
-                    customer, provider, scanMethod, accessLevel, stage, availability, limit));
+                string timeRange = ((ComboBoxItem)TimeRangeCombo.SelectedItem)?.Tag?.ToString() ?? "Any";
+
+                var results = await _apiService.SearchLogsAsync(
+                    customer, provider, scanMethod, accessLevel, stage, availability, limit, timeRange);
 
                 SearchResultsList.ItemsSource = results;
 
@@ -136,7 +138,7 @@ namespace DQEHelper.Views.Coralogix
                 var providerParts = new List<string> { provider };
                 if (scanMethodShort != "any") providerParts.Add(scanMethodShort);
                 if (accessLevel != "any") providerParts.Add(accessLevel);
-                
+
                 string customProviderName = string.Join("_", providerParts);
 
                 // 4. Запускаем параллельное скачивание, передавая собранное имя
@@ -181,19 +183,19 @@ namespace DQEHelper.Views.Coralogix
                     ProviderScanId = entry.ProviderScanId,
                     TaskId = entry.TaskId,
                     HdsUrl = hdsUrl,
-                    ExtData = minifiedJson, 
-                    
+                    ExtData = minifiedJson,
+
                     SnapshotUrl = FindJsonValue(root, "snapshot_url") ?? "",
                     DeepLink = FindJsonValue(root, "deep_link") ?? "",
                     Pos = FindJsonValue(root, "pos") ?? "",
-                    
+
                     // Используем наше сгенерированное составное имя!
-                    CustomProvider = customProviderName 
+                    CustomProvider = customProviderName
                 };
             }
             catch
             {
-                return null; 
+                return null;
             }
         }
 
@@ -208,9 +210,9 @@ namespace DQEHelper.Views.Coralogix
                     // 🚀 ПРОВЕРКА НА МАССИВ: Если это массив, берем первый элемент
                     if (match.ValueKind == JsonValueKind.Array && match.GetArrayLength() > 0)
                     {
-                        return match[0].ToString(); 
+                        return match[0].ToString();
                     }
-                    
+
                     // Иначе возвращаем как есть (строку, число и т.д.)
                     return match.ToString();
                 }

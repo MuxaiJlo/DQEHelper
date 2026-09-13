@@ -187,7 +187,7 @@
                         <RadioButton Style="{StaticResource MenuButtonStyle}" GroupName="MainMenu" 
                                     x:Name="NavJiraReportFetcher" Checked="NavJiraReportFetcher_Checked">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE753;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
+                                <TextBlock Text="&#xE7C3;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" Width="30"/>
                                 <TextBlock Text="Jira Report" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
