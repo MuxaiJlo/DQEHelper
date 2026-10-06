@@ -156,52 +156,74 @@ namespace DQEHelper.Views.Jenkins
 
                 foreach (Match match in matches)
                 {
-                    string rawError = match.Groups["error"].Value.Replace("The following asserts failed:", "").Trim();
-
-                    int roomIndex = 0;
-                    var roomMatch = Regex.Match(rawError, @"Room index\s*[:\-]?\s*(?<room>\d+)", RegexOptions.IgnoreCase);
-                    if (roomMatch.Success)
-                    {
-                        roomIndex = int.Parse(roomMatch.Groups["room"].Value);
-                        rawError = rawError.Remove(roomMatch.Index, roomMatch.Length);
-                    }
-
-                    string cleanError = rawError
-                        .Replace("\n", " ")
-                        .Replace("\r", "")
-                        .Replace("\t", "")
-                        .TrimStart('-', ',', ':', ' ');
-
-                    int cutIdx = cleanError.IndexOfAny(new[] { '.', ',' });
-                    if (cutIdx > 0)
-                    {
-                        cleanError = cleanError.Substring(0, cutIdx).Trim();
-                    }
-                    if (!cleanError.EndsWith(".")) cleanError += ".";
-
+                    // Берем весь блок ошибок для конкретного снэпа
+                    string rawErrorBlock = match.Groups["error"].Value.Replace("The following asserts failed:", "").Trim();
                     int snapId = int.Parse(match.Groups["snap"].Value);
 
-                    // 🚀 НОВАЯ ИЕРАРХИЯ: Provider -> Error -> Snap -> Room
-                    var errorGroup = providerNode.Errors.FirstOrDefault(e => e.Title == cleanError);
-                    if (errorGroup == null)
-                    {
-                        errorGroup = new ErrorGroupNode { Title = cleanError };
-                        providerNode.Errors.Add(errorGroup);
-                    }
+                    // 🚀 ИСПРАВЛЕНИЕ: Разбиваем блок ошибки на отдельные строки.
+                    // При множественных проверках (Soft Asserts), Allure выдает каждую ошибку с новой строки.
+                    var errorLines = rawErrorBlock.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(e => e.Trim())
+                        .Where(e => !string.IsNullOrWhiteSpace(e));
 
-                    var snapNode = errorGroup.Snaps.FirstOrDefault(s => s.SnapIndex == snapId);
-                    if (snapNode == null)
+                    foreach (var line in errorLines)
                     {
-                        snapNode = new SnapNode { SnapIndex = snapId, Title = $"Snap Index: {snapId}" };
-                        errorGroup.Snaps.Add(snapNode);
-                    }
+                        string currentLine = line;
+                        
+                        // Отсекаем мусор, например, строки со StackTrace (обычно начинаются с "at " или "в ")
+                        if (currentLine.StartsWith("at ", StringComparison.OrdinalIgnoreCase) || 
+                            currentLine.StartsWith("в ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
 
-                    var roomNode = snapNode.Rooms.FirstOrDefault(r => r.RoomIndex == roomIndex);
-                    if (roomNode == null)
-                    {
-                        string roomTitle = roomIndex == 0 ? "General Errors" : $"Room Index: {roomIndex}";
-                        roomNode = new RoomNode { RoomIndex = roomIndex, Title = roomTitle };
-                        snapNode.Rooms.Add(roomNode);
+                        int roomIndex = 0;
+
+                        // 1. Ищем комнату именно в текущей строке (текущей ошибке)
+                        var roomMatch = Regex.Match(currentLine, @"Room index\s*[:\-]?\s*(?<room>\d+)", RegexOptions.IgnoreCase);
+                        if (roomMatch.Success)
+                        {
+                            roomIndex = int.Parse(roomMatch.Groups["room"].Value);
+                            currentLine = currentLine.Remove(roomMatch.Index, roomMatch.Length); // Вырезаем комнату из текста
+                        }
+
+                        // 2. Очищаем строку от маркеров списков (тире, звездочки, нумерация)
+                        string cleanError = currentLine
+                            .Replace("\t", " ")
+                            .TrimStart('-', '*', ',', ':', ' ', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ')', '.');
+
+                        if (string.IsNullOrWhiteSpace(cleanError)) continue;
+
+                        // 3. Оставляем только суть (до первой точки или запятой) для короткого тайтла
+                        int cutIdx = cleanError.IndexOfAny(new[] { '.', ',' });
+                        if (cutIdx > 0)
+                        {
+                            cleanError = cleanError.Substring(0, cutIdx).Trim();
+                        }
+                        if (!cleanError.EndsWith(".")) cleanError += ".";
+
+                        // 4. Добавляем в наше дерево (сохраняя твою структуру)
+                        var errorGroup = providerNode.Errors.FirstOrDefault(e => e.Title == cleanError);
+                        if (errorGroup == null)
+                        {
+                            errorGroup = new ErrorGroupNode { Title = cleanError };
+                            providerNode.Errors.Add(errorGroup);
+                        }
+
+                        var snapNode = errorGroup.Snaps.FirstOrDefault(s => s.SnapIndex == snapId);
+                        if (snapNode == null)
+                        {
+                            snapNode = new SnapNode { SnapIndex = snapId, Title = $"Snap Index: {snapId}" };
+                            errorGroup.Snaps.Add(snapNode);
+                        }
+
+                        var roomNode = snapNode.Rooms.FirstOrDefault(r => r.RoomIndex == roomIndex);
+                        if (roomNode == null)
+                        {
+                            string roomTitle = roomIndex == 0 ? "General Errors" : $"Room Index: {roomIndex}";
+                            roomNode = new RoomNode { RoomIndex = roomIndex, Title = roomTitle };
+                            snapNode.Rooms.Add(roomNode);
+                        }
                     }
                 }
 

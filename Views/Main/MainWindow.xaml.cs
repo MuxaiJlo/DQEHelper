@@ -28,7 +28,7 @@ namespace DQEHelper.Views.Main
             _jiraReport = new JiraReport();
             _welcomeContent = CreateWelcomeContent();
 
-            // При запуске приложения показываем приветственное сообщение и просим выбрать задачу
+            // При запуске приложения показываем приветственное сообщение
             MainContentArea.Content = _welcomeContent;
         }
 
@@ -82,14 +82,21 @@ namespace DQEHelper.Views.Main
         {
             if (MainContentArea != null && _coralogixView != null)
             {
+                // 💡 АРХИТЕКТУРНОЕ УЛУЧШЕНИЕ: 
+                // Перед показом страницы принудительно заставляем её обновить куки и сервис.
+                _coralogixView.RefreshApiService();
+
                 MainContentArea.Content = _coralogixView;
                 Width = 1400;
             }
         }
+        
         private void NavJenkinsApiFetcher_Checked(object sender, RoutedEventArgs e)
         {
             if (MainContentArea != null && _jenkinsView != null)
             {
+                // Если для Jenkins тоже нужна авторизация/куки, 
+                // аналогичный метод можно добавить и туда: _jenkinsView.RefreshApiService();
                 MainContentArea.Content = _jenkinsView;
                 Width = 1400;
             }
@@ -118,7 +125,6 @@ namespace DQEHelper.Views.Main
                 this.DragMove();
             }
         }
-
 
         // Кнопка сворачивания
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)

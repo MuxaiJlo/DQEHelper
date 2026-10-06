@@ -71,7 +71,7 @@ namespace DQEHelper.Services
                 mustConditions.Add(new { match_phrase = new Dictionary<string, string> { { "log.stage", stage } } });
 
             if (availability != "Any")
-                mustConditions.Add(new { match_phrase = new Dictionary<string, string> { { "log.availability", availability } } });
+                mustConditions.Add(new { term = new Dictionary<string, string> { { "log.availability.keyword", availability } } });
 
             // Добавляем фильтр по времени (например: "1h", "6h", "12h", "24h")
             if (!string.IsNullOrWhiteSpace(timeRange) && timeRange != "Any")
@@ -155,23 +155,38 @@ namespace DQEHelper.Services
         // ЭТАП 2: Запрос сырого JSON из GCP API
         public async Task<string> GetRawScanDataAsync(string providerScanId, string taskId)
         {
-            // 1. Очищаем от случайных пробелов
+            // 1. Очищаем строки от возможных скрытых символов переноса строки (CRLF)
             string cleanScanId = providerScanId.Trim();
             string cleanTaskId = taskId.Trim();
 
-            // 2. Кодируем параметры для безопасности URL (превратит ":" в "%3A")
-            string safeScanId = Uri.EscapeDataString(cleanScanId);
-            string safeTaskId = Uri.EscapeDataString(cleanTaskId);
+            // 2. Формируем чистый URL. Убираем ручной Uri.EscapeDataString, 
+            // так как внутренние API на Python (Flask) часто плохо понимают %3A вместо двоеточия (::).
+            string baseUrl = $"http://historical-data-api-prod.prod.gcphosts.net:5000/data/hot/{cleanScanId}?id={cleanTaskId}";
 
-            // 3. Формируем URL БЕЗ хардкода "::0", так как он уже есть в taskId
-            string url = $"http://historical-data-api-prod.prod.gcphosts.net:5000/data/hot/{safeScanId}?id={safeTaskId}";
+            // 3. Cache-Buster: Добавляем уникальный timestamp, чтобы пробить кэш балансировщика
+            string requestUrl = $"{baseUrl}&_cb={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
 
-            var response = await _httpClient.GetAsync(url);
+            var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            // Явно требуем от сервера свежих данных
+            request.Headers.Add("Cache-Control", "no-cache");
+
+            // Логируем точный URL, который пошел в сеть (смотри окно Output в Visual Studio)
+            Debug.WriteLine($"[GCP API REQUEST] GET {requestUrl}");
+
+            var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
             string jsonResult = await response.Content.ReadAsStringAsync();
 
-            // Форматируем JSON для красивого отображения в UI
+            // 4. FAIL-FAST: Если GCP вернул пустой массив, останавливаемся и бросаем 
+            // кастомную ошибку с оригинальным URL (без кэш-бастера).
+            if (jsonResult.Replace(" ", "").Contains("\"data\":[]"))
+            {
+                // Эта ошибка отобразится прямо в JsonPreviewTextBox или в MessageBox,
+                // и вы сможете скопировать URL, вставить в браузер и проверить, работает ли он там!
+                throw new Exception($"GCP не нашел скан (Not Found).\nПроверьте эту ссылку вручную:\n{baseUrl}");
+            }
+
             using var jsonDoc = JsonDocument.Parse(jsonResult);
             return JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
         }

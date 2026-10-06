@@ -17,7 +17,7 @@ namespace DQEHelper.Views.Coralogix
 {
     public partial class CoralogixView : UserControl
     {
-        private readonly CoralogixApiService _apiService;
+        private CoralogixApiService _apiService;
         private readonly ObservableCollection<ScanReportItem> _reportCart = new();
 
        public CoralogixView()
@@ -29,6 +29,13 @@ namespace DQEHelper.Views.Coralogix
         string savedCookie = SecureStorage.GetCoralogixCookie();
 
         // 2. Инициализируем сервис
+        _apiService = new CoralogixApiService(savedCookie);
+    }
+
+    public void RefreshApiService()
+    {
+        // Считываем свежую куку из файла и пересоздаем HTTP клиент
+        string savedCookie = SecureStorage.GetCoralogixCookie();
         _apiService = new CoralogixApiService(savedCookie);
     }
 

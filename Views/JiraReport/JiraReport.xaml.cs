@@ -152,8 +152,12 @@ namespace DQEHelper.Views
             var results = new List<ShopRecord>();
             var rows = ReadCsvRobust(filePath);
 
-            // По умолчанию начинаем с Coralogix
+            // По умолчанию отчет начинается с Coralogix
             ReportSection currentSection = ReportSection.Coralogix;
+
+            // Уникальный маркер для перехода к секции Daily. 
+            // Берем достаточно длинную часть слипшейся строки, чтобы исключить ложные срабатывания.
+            const string dailySectionMarker = "1/0comment_providerAPIRequestapiKeydealsisFullStayhotelName";
 
             foreach (var columns in rows)
             {
@@ -161,18 +165,19 @@ namespace DQEHelper.Views
                     continue;
 
                 string rawFirstCol = columns[0].Trim();
-                string rawThirdCol = columns.Length >= 3 ? columns[2].Trim() : "";
 
-                // Разделитель: Переход в Daily
-                if (rawFirstCol.Contains("1/0comments_provider", StringComparison.OrdinalIgnoreCase) ||
-                    rawThirdCol.Contains("1/0comments_provider", StringComparison.OrdinalIgnoreCase) ||
-                    rawFirstCol.Contains("deals.provider", StringComparison.OrdinalIgnoreCase))
+                // 1. ПРОВЕРКА НА ПЕРЕХОД В DAILY REPORT
+                // Склеиваем всю строку без пробелов и табов. Так мы гарантированно найдем 
+                // разделитель, даже если парсер разбил его по разным столбцам из-за артефактов в CSV.
+                string fullRowText = string.Join("", columns).Replace(" ", "").Replace("\t", "");
+
+                if (fullRowText.Contains(dailySectionMarker, StringComparison.OrdinalIgnoreCase))
                 {
                     currentSection = ReportSection.Daily;
-                    continue;
+                    continue; // Пропускаем саму строку-разделитель, она не нужна в отчете
                 }
 
-                // Разделитель: Переход в Автотесты
+                // 2. ПРОВЕРКА НА ПЕРЕХОД В АВТОТЕСТЫ
                 if (rawFirstCol.Equals("Автотест", StringComparison.OrdinalIgnoreCase) ||
                     rawFirstCol.Equals("Autotest", StringComparison.OrdinalIgnoreCase))
                 {
@@ -180,17 +185,18 @@ namespace DQEHelper.Views
                     continue;
                 }
 
+                // 3. ЧТЕНИЕ ДАННЫХ (ЕСЛИ ЭТО НЕ СТРОКА-РАЗДЕЛИТЕЛЬ)
                 if (columns.Length >= 3)
                 {
                     string flag = rawFirstCol;
                     string comment = columns[1].Trim();
                     string provider = columns[2].Trim();
 
-                    // Пропускаем шапки таблиц
+                    // Пропускаем классические не слипшиеся шапки таблиц
                     if (flag == "1/0" || string.IsNullOrEmpty(provider))
                         continue;
 
-                    // Обрабатываем ячейки Автотеста, если слово Autotest "прилипло" к значению
+                    // Обрабатываем ячейки Автотеста, если слово Autotest случайно "прилипло" к значению ячейки
                     if (flag.StartsWith("Autotest\n", StringComparison.OrdinalIgnoreCase))
                     {
                         currentSection = ReportSection.Autotest;
@@ -323,6 +329,25 @@ namespace DQEHelper.Views
                 {
                     MessageBox.Show($"Ошибка при сохранении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private void CopyReportButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ReportOutputTextBox.Text))
+            {
+                MessageBox.Show("Сначала сгенерируйте отчет, выбрав файл.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(ReportOutputTextBox.Text);
+                MessageBox.Show("Отчет скопирован в буфер обмена.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при копировании отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
